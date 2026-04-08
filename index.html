@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MemPalace — 有史以来基准测试得分最高的 AI 记忆系统</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            palace: {
+              bg: '#0a0e14',
+              surface: '#111822',
+              card: '#16202e',
+              border: '#1e2d3d',
+              accent: '#4dc9f6',
+              accentDim: '#2a8ab0',
+              highlight: '#7dd8f8',
+              text: '#c5d1de',
+              muted: '#6b7f95',
+              gold: '#f0c040',
+              green: '#3dd68c',
+              red: '#f04858',
+              yellow: '#f0c040',
+            }
+          },
+          fontFamily: {
+            sans: ['Space Grotesk', 'system-ui', 'sans-serif'],
+            body: ['DM Sans', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { scrollbar-width: thin; scrollbar-color: #1e2d3d #0a0e14; }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0e14; }
+    ::-webkit-scrollbar-thumb { background: #1e2d3d; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2a3d52; }
+    html { scroll-behavior: smooth; }
+    body { background: #0a0e14; }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.025;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #4dc9f6 0%, #7dd8f8 50%, #f0c040 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .glow {
+      box-shadow: 0 0 30px rgba(77, 201, 246, 0.12), 0 1px 0 rgba(255,255,255,0.03) inset;
+    }
+    .glow-hover { transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    .glow-hover:hover {
+      box-shadow: 0 0 50px rgba(77, 201, 246, 0.2), 0 4px 20px rgba(0,0,0,0.3);
+      transform: translateY(-1px);
+    }
+
+    .code-block {
+      background: #0c1017;
+      border: 1px solid #1a2636;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      overflow-x: auto;
+      font-size: 0.8125rem;
+      line-height: 1.8;
+      position: relative;
+    }
+    .code-block::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(77,201,246,0.15), transparent);
+    }
+
+    .nav-link {
+      transition: color 0.2s, opacity 0.2s;
+      position: relative;
+    }
+    .nav-link::after {
+      content: '';
+      position: absolute;
+      bottom: -2px; left: 0; right: 0;
+      height: 1px;
+      background: #4dc9f6;
+      transform: scaleX(0);
+      transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .nav-link:hover { color: #4dc9f6; }
+    .nav-link:hover::after { transform: scaleX(1); }
+
+    .feature-card {
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(77,201,246,0.2), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(77, 201, 246, 0.08), 0 0 0 1px rgba(77,201,246,0.08);
+    }
+    .feature-card:hover::before { opacity: 1; }
+
+    .stat-card {
+      background: linear-gradient(135deg, #16202e, #111822);
+      position: relative;
+      overflow: hidden;
+    }
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 20%; right: 20%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(77,201,246,0.3), transparent);
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    .float-anim { animation: float 6s ease-in-out infinite; }
+
+    .palace-diagram { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; line-height: 1.3; }
+
+    /* Table row hover */
+    tbody tr { transition: background 0.15s; }
+    tbody tr:hover { background: rgba(77, 201, 246, 0.04); }
+
+    /* Section fade-in on scroll */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Progress bar shimmer */
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    .progress-bar {
+      background-size: 200% 100%;
+      animation: shimmer 3s ease-in-out infinite;
+    }
+
+    /* Pill badge */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+    }
+
+    /* Smooth anchor offset for fixed nav */
+    :target { scroll-margin-top: 5rem; }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+      .float-anim { animation: none; }
+      .reveal { opacity: 1; transform: none; transition: none; }
+      .feature-card, .glow-hover { transition: none; }
+      .progress-bar { animation: none; }
+    }
+  </style>
+</head>
+<body class="text-palace-text font-sans antialiased">
+
+  <!-- 导航栏 -->
+  <nav class="fixed top-0 w-full z-50 bg-palace-bg/80 backdrop-blur-xl border-b border-palace-border/60">
+    <div class="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="#hero" class="flex items-center gap-2.5 text-white font-semibold text-lg tracking-tight">
+        <span class="text-2xl">🏛️</span> MemPalace
+      </a>
+      <div class="hidden md:flex items-center gap-7 text-sm text-palace-muted font-medium">
+        <a href="#features" class="nav-link">特性</a>
+        <a href="#quickstart" class="nav-link">快速开始</a>
+        <a href="#palace" class="nav-link">宫殿</a>
+        <a href="#benchmarks" class="nav-link">基准测试</a>
+        <a href="#mcp" class="nav-link">MCP 工具</a>
+        <a href="https://github.com/milla-jovovich/mempalace" target="_blank" class="nav-link flex items-center gap-1">
+          <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          GitHub
+        </a>
+      </div>
+      <!-- 移动端菜单按钮 -->
+      <button id="mobileMenuBtn" class="md:hidden text-palace-muted">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+    </div>
+    <!-- 移动端菜单 -->
+    <div id="mobileMenu" class="hidden md:hidden bg-palace-surface border-b border-palace-border">
+      <div class="px-6 py-4 flex flex-col gap-3 text-sm text-palace-muted">
+        <a href="#features" class="nav-link py-1">特性</a>
+        <a href="#quickstart" class="nav-link py-1">快速开始</a>
+        <a href="#palace" class="nav-link py-1">宫殿</a>
+        <a href="#benchmarks" class="nav-link py-1">基准测试</a>
+        <a href="#mcp" class="nav-link py-1">MCP 工具</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero 区域 -->
+  <section id="hero" class="relative pt-32 pb-20 md:pt-44 md:pb-32 overflow-hidden">
+    <!-- 背景装饰 -->
+    <div class="absolute inset-0 overflow-hidden pointer-events-none">
+      <div class="absolute top-20 left-1/4 w-[500px] h-[500px] bg-palace-accent/[0.04] rounded-full blur-[100px]"></div>
+      <div class="absolute bottom-10 right-1/4 w-[400px] h-[400px] bg-palace-gold/[0.04] rounded-full blur-[100px]"></div>
+      <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-palace-accent/[0.02] rounded-full blur-[120px]"></div>
+    </div>
+    <div class="max-w-5xl mx-auto px-6 text-center relative z-10">
+      <div class="mb-8 float-anim">
+        <span class="text-7xl md:text-8xl inline-block">🏛️</span>
+      </div>
+      <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold text-white leading-[1.1] mb-6 tracking-tight">
+        MemPalace
+      </h1>
+      <p class="text-xl md:text-2xl text-palace-accent font-medium mb-6 tracking-tight font-body">
+        有史以来基准测试得分最高的 AI 记忆系统。而且免费。
+      </p>
+      <p class="text-base md:text-lg text-palace-muted max-w-2xl mx-auto mb-12 leading-relaxed font-body">
+        你与 AI 的每一次对话——每一个决策、每一次调试、每一次架构讨论——都在会话结束时消失。<br>
+        MemPalace 存储一切，然后让它可查找。
+      </p>
+
+      <!-- 核心数据 -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5 max-w-2xl mx-auto mb-14">
+        <div class="stat-card rounded-2xl p-6 border border-palace-border/60 glow">
+          <div class="text-3xl md:text-4xl font-bold text-palace-accent tracking-tight">96.6%</div>
+          <div class="text-xs text-palace-muted mt-2 font-body">LongMemEval R@5</div>
+          <div class="text-xs text-palace-highlight font-medium mt-0.5 font-body">原始模式，零 API 调用</div>
+        </div>
+        <div class="stat-card rounded-2xl p-6 border border-palace-border/60 glow">
+          <div class="text-3xl md:text-4xl font-bold text-palace-green tracking-tight">500/500</div>
+          <div class="text-xs text-palace-muted mt-2 font-body">测试问题数</div>
+          <div class="text-xs text-palace-green font-medium mt-0.5 font-body">独立复现</div>
+        </div>
+        <div class="stat-card rounded-2xl p-6 border border-palace-border/60 glow">
+          <div class="text-3xl md:text-4xl font-bold text-palace-gold tracking-tight">$0</div>
+          <div class="text-xs text-palace-muted mt-2 font-body">无需订阅</div>
+          <div class="text-xs text-palace-gold font-medium mt-0.5 font-body">无需云端，仅本地</div>
+        </div>
+      </div>
+
+      <!-- CTA -->
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+        <a href="#quickstart" class="px-8 py-3.5 bg-palace-accent hover:bg-palace-highlight text-palace-bg font-semibold rounded-xl transition-all glow-hover text-sm tracking-wide">
+          快速开始
+        </a>
+        <a href="https://github.com/milla-jovovich/mempalace" target="_blank" class="px-8 py-3.5 border border-palace-border hover:border-palace-accent/60 text-palace-text font-medium rounded-xl transition-all text-sm hover:text-palace-highlight">
+          查看 GitHub
+        </a>
+      </div>
+
+      <!-- 安装命令 -->
+      <div class="mt-10 inline-flex items-center gap-3 bg-palace-surface/80 border border-palace-border/60 rounded-xl px-6 py-3.5 backdrop-blur-sm">
+        <span class="text-palace-muted text-sm font-mono select-none">$</span>
+        <code class="text-palace-highlight font-mono text-sm">pip install mempalace</code>
+        <button onclick="navigator.clipboard.writeText('pip install mempalace')" class="text-palace-muted hover:text-palace-accent transition-colors ml-1" title="复制">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 透明度说明 -->
+  <section class="py-14 bg-palace-surface/50 border-y border-palace-border/60">
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="bg-palace-card border border-palace-yellow/20 rounded-2xl p-6 md:p-8 relative overflow-hidden">
+        <div class="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-palace-yellow/30 to-transparent"></div>
+        <div class="flex items-start gap-4">
+          <span class="text-2xl mt-0.5 flex-shrink-0">⚠️</span>
+          <div>
+            <h3 class="text-palace-yellow font-semibold text-lg mb-3 tracking-tight">来自 Milla & Ben 的说明 — 2026 年 4 月 7 日</h3>
+            <p class="text-palace-muted text-sm mb-4 font-body">社区在发布后数小时内发现了真实问题，我们直接回应。</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <p class="text-palace-red font-semibold mb-1">我们做错的地方：</p>
+                <ul class="text-palace-muted space-y-1.5 list-disc list-inside">
+                  <li>AAAK token 示例不正确（使用了粗略启发式而非实际分词器）</li>
+                  <li>"30 倍无损压缩"被夸大，AAAK 实为有损缩写</li>
+                  <li>"+34% 宫殿提升"实为 ChromaDB 标准元数据过滤</li>
+                  <li>"矛盾检测"尚未接入知识图谱操作</li>
+                </ul>
+              </div>
+              <div>
+                <p class="text-palace-green font-semibold mb-1">仍然真实且可复现的：</p>
+                <ul class="text-palace-muted space-y-1.5 list-disc list-inside">
+                  <li>原始模式 LongMemEval R@5 为 96.6%，零 API 调用</li>
+                  <li>本地、免费、数据不离开你的机器</li>
+                  <li>翼/房间/壁橱/抽屉架构真实且有用</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 核心特性 -->
+  <section id="features" class="py-20 md:py-28">
+    <div class="max-w-7xl mx-auto px-6">
+      <div class="text-center mb-16">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">核心特性</h2>
+        <p class="text-palace-muted max-w-2xl mx-auto font-body leading-relaxed">存储一切，让它可查找。不是让 AI 决定什么值得记住。</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- 宫殿 -->
+        <div class="feature-card bg-palace-card border border-palace-border/60 rounded-2xl p-8">
+          <div class="text-3xl mb-4">🏛️</div>
+          <h3 class="text-lg font-semibold text-white mb-3 tracking-tight">宫殿（The Palace）</h3>
+          <p class="text-palace-muted leading-relaxed mb-4 font-body text-[0.9375rem]">
+            古希腊演说家通过将想法放置在想象建筑的房间中来记住整篇演讲。MemPalace 将同样的原则应用于 AI 记忆：你的对话被组织成<strong class="text-palace-highlight">翼（人与项目）</strong>、<strong class="text-palace-highlight">厅（记忆类型）</strong>和<strong class="text-palace-highlight">房间（具体想法）</strong>。
+          </p>
+          <p class="text-palace-muted text-sm font-body">没有 AI 来决定什么重要——你保留每一个字，结构为你提供可导航的地图。</p>
+        </div>
+
+        <!-- 原始逐字存储 -->
+        <div class="feature-card bg-palace-card border border-palace-border/60 rounded-2xl p-8">
+          <div class="text-3xl mb-4">💾</div>
+          <h3 class="text-lg font-semibold text-white mb-3 tracking-tight">原始逐字存储</h3>
+          <p class="text-palace-muted leading-relaxed mb-4 font-body text-[0.9375rem]">
+            MemPalace 将你的实际对话存储在 ChromaDB 中，<strong class="text-palace-highlight">不进行摘要或提取</strong>。96.6% 的 LongMemEval 成绩正是来自这种原始模式。
+          </p>
+          <p class="text-palace-muted text-sm font-body">我们不会消耗 LLM 来决定什么"值得记住"——我们保留一切，让语义搜索来找到它。</p>
+        </div>
+
+        <!-- AAAK -->
+        <div class="feature-card bg-palace-card border border-palace-border/60 rounded-2xl p-8">
+          <div class="text-3xl mb-4">🔤</div>
+          <h3 class="text-lg font-semibold text-white mb-3 tracking-tight">AAAK 方言（实验性）</h3>
+          <p class="text-palace-muted leading-relaxed mb-4 font-body text-[0.9375rem]">
+            一种有损缩写方言，用于在大规模场景下将重复实体压缩到更少的 token 中。<strong class="text-palace-highlight">任何能读取文本的 LLM 都能阅读</strong>——Claude、GPT、Gemini、Llama、Mistral——无需解码器。
+          </p>
+          <div class="flex items-center gap-2 text-xs">
+            <span class="badge bg-palace-yellow/10 text-palace-yellow">实验性</span>
+            <span class="text-palace-muted font-body">当前相比原始模式有所回退（84.2% vs 96.6%）</span>
+          </div>
+        </div>
+
+        <!-- 本地开放 -->
+        <div class="feature-card bg-palace-card border border-palace-border/60 rounded-2xl p-8">
+          <div class="text-3xl mb-4">🔒</div>
+          <h3 class="text-lg font-semibold text-white mb-3 tracking-tight">本地、开放、可适配</h3>
+          <p class="text-palace-muted leading-relaxed mb-4 font-body text-[0.9375rem]">
+            MemPalace 完全在你的机器上运行，使用你本地的任何数据，<strong class="text-palace-highlight">不使用任何外部 API 或服务</strong>。它已在对话上经过测试——但可以适配不同类型的数据存储。
+          </p>
+          <p class="text-palace-muted text-sm font-body">这就是我们开源它的原因。MIT 许可证。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 问题所在 -->
+  <section class="py-20 bg-palace-surface/50 border-y border-palace-border/60">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">问题所在</h2>
+        <p class="text-palace-muted max-w-2xl mx-auto font-body leading-relaxed">决策现在发生在对话中。不在文档里。不在 Jira 里。在与 AI 的对话中——会话结束就消失。</p>
+      </div>
+
+      <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-8 mb-10">
+        <p class="text-2xl md:text-3xl font-bold text-white text-center mb-8 tracking-tight">
+          六个月的日常 AI 使用 = <span class="text-palace-accent">1950 万 token</span>
+        </p>
+        <p class="text-palace-muted text-center mb-8 font-body">每一个决策、每一次调试、每一场架构讨论。化为乌有。</p>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-palace-border">
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">方法</th>
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">加载的 token</th>
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">年度成本</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-palace-border/50">
+                <td class="py-3 px-4 text-palace-muted">粘贴全部</td>
+                <td class="py-3 px-4 text-palace-red">1950 万——放不进任何上下文窗口</td>
+                <td class="py-3 px-4 text-palace-red">不可能</td>
+              </tr>
+              <tr class="border-b border-palace-border/50">
+                <td class="py-3 px-4 text-palace-muted">LLM 摘要</td>
+                <td class="py-3 px-4 text-palace-muted">~65 万</td>
+                <td class="py-3 px-4 text-palace-muted">~$507/年</td>
+              </tr>
+              <tr class="border-b border-palace-border/50 bg-palace-accent/5">
+                <td class="py-3 px-4 text-palace-accent font-semibold">MemPalace 唤醒</td>
+                <td class="py-3 px-4 text-palace-accent font-semibold">~170 token</td>
+                <td class="py-3 px-4 text-palace-accent font-semibold">~$0.70/年</td>
+              </tr>
+              <tr class="bg-palace-accent/5">
+                <td class="py-3 px-4 text-palace-accent font-semibold">MemPalace + 5 次搜索</td>
+                <td class="py-3 px-4 text-palace-accent font-semibold">~13,500 token</td>
+                <td class="py-3 px-4 text-palace-accent font-semibold">~$10/年</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 快速开始 -->
+  <section id="quickstart" class="py-20 md:py-28">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">快速开始</h2>
+        <p class="text-palace-muted font-body">三步开始使用 MemPalace</p>
+      </div>
+
+      <div class="space-y-6">
+        <!-- 安装 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-full bg-palace-accent/10 text-palace-accent font-semibold text-sm flex items-center justify-center border border-palace-accent/20">1</span>
+            <h3 class="text-white font-semibold tracking-tight">安装并初始化</h3>
+          </div>
+          <div class="code-block font-mono text-palace-highlight">
+            <div><span class="text-palace-muted">$</span> pip install mempalace</div>
+            <div class="mt-2"><span class="text-palace-muted">#</span> <span class="text-palace-muted">设置你的世界——你和谁一起工作，你的项目是什么</span></div>
+            <div><span class="text-palace-muted">$</span> mempalace init ~/projects/myapp</div>
+          </div>
+        </div>
+
+        <!-- 挖掘 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-full bg-palace-accent/10 text-palace-accent font-semibold text-sm flex items-center justify-center border border-palace-accent/20">2</span>
+            <h3 class="text-white font-semibold tracking-tight">挖掘你的数据</h3>
+          </div>
+          <div class="code-block font-mono text-palace-highlight">
+            <div><span class="text-palace-muted">$</span> mempalace mine ~/projects/myapp                    <span class="text-palace-muted"># 项目——代码、文档、笔记</span></div>
+            <div><span class="text-palace-muted">$</span> mempalace mine ~/chats/ --mode convos              <span class="text-palace-muted"># 对话——Claude、ChatGPT、Slack 导出</span></div>
+            <div><span class="text-palace-muted">$</span> mempalace mine ~/chats/ --mode convos --extract general  <span class="text-palace-muted"># 通用——自动分类</span></div>
+          </div>
+          <p class="text-palace-muted text-sm mt-4">三种挖掘模式：<strong class="text-palace-text">项目</strong>（代码和文档）、<strong class="text-palace-text">对话</strong>（对话导出）和<strong class="text-palace-text">通用</strong>（自动分类为决策、偏好、里程碑、问题和情感上下文）。</p>
+        </div>
+
+        <!-- 搜索 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-6">
+          <div class="flex items-center gap-3 mb-4">
+            <span class="w-8 h-8 rounded-full bg-palace-accent/10 text-palace-accent font-semibold text-sm flex items-center justify-center border border-palace-accent/20">3</span>
+            <h3 class="text-white font-semibold tracking-tight">搜索你曾经讨论过的任何内容</h3>
+          </div>
+          <div class="code-block font-mono text-palace-highlight">
+            <div><span class="text-palace-muted">$</span> mempalace search "为什么我们切换到 GraphQL"</div>
+            <div class="mt-2"><span class="text-palace-muted">#</span> <span class="text-palace-muted">你的 AI 记住了</span></div>
+            <div><span class="text-palace-muted">$</span> mempalace status</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 如何使用 -->
+  <section class="py-20 bg-palace-surface/50 border-y border-palace-border/60">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">你实际如何使用它</h2>
+        <p class="text-palace-muted max-w-2xl mx-auto font-body leading-relaxed">一次性设置后，你不需要手动运行 MemPalace 命令。你的 AI 会替你使用它。</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- MCP 兼容工具 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-8">
+          <h3 class="text-lg font-bold text-white mb-2">使用 Claude、ChatGPT、Cursor、Gemini</h3>
+          <p class="text-palace-muted text-sm mb-5">兼容 MCP 的工具，AI 自动调用搜索。</p>
+          <div class="code-block font-mono text-palace-highlight text-xs mb-4">
+            <div><span class="text-palace-muted">#</span> <span class="text-palace-muted">一次性连接 MemPalace</span></div>
+            <div>claude mcp add mempalace \<br>  -- python -m mempalace.mcp_server</div>
+          </div>
+          <div class="bg-palace-surface rounded-lg p-4 border border-palace-border">
+            <p class="text-sm italic text-palace-muted">"上个月我们对认证做了什么决定？"</p>
+            <p class="text-xs text-palace-accent mt-2">→ Claude 自动调用 mempalace_search，获取逐字结果</p>
+          </div>
+          <p class="text-palace-muted text-xs mt-3">MemPalace 也原生支持 Gemini CLI</p>
+        </div>
+
+        <!-- 本地模型 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-8">
+          <h3 class="text-lg font-bold text-white mb-2">使用本地模型</h3>
+          <p class="text-palace-muted text-sm mb-5">Llama、Mistral 或任何离线 LLM。</p>
+          <div class="space-y-4">
+            <div>
+              <p class="text-palace-highlight text-sm font-semibold mb-2">方法 1：唤醒命令</p>
+              <div class="code-block font-mono text-palace-highlight text-xs">
+                <div>mempalace wake-up > context.txt</div>
+                <div class="text-palace-muted"># 将 context.txt 粘贴到系统提示中</div>
+              </div>
+              <p class="text-palace-muted text-xs mt-2">约 170 token 的关键事实，在提问之前就加载</p>
+            </div>
+            <div>
+              <p class="text-palace-highlight text-sm font-semibold mb-2">方法 2：CLI 搜索</p>
+              <div class="code-block font-mono text-palace-highlight text-xs">
+                <div>mempalace search "认证决策" > results.txt</div>
+                <div class="text-palace-muted"># 在提示中包含 results.txt</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 宫殿架构 -->
+  <section id="palace" class="py-20 md:py-28">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">宫殿架构</h2>
+        <p class="text-palace-muted max-w-2xl mx-auto font-body leading-relaxed">布局相当简单，尽管花了很多时间才达到这个效果。</p>
+      </div>
+
+      <!-- 架构图 -->
+      <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-6 md:p-8 mb-10 overflow-x-auto">
+        <pre class="palace-diagram text-palace-highlight text-center whitespace-pre min-w-[500px]">
+  ┌─────────────────────────────────────────────────────────────┐
+  │  <span class="text-palace-accent font-bold">翼：人物</span>                                                    │
+  │                                                            │
+  │    ┌──────────┐  <span class="text-palace-yellow">──厅──</span>  ┌──────────┐                    │
+  │    │  <span class="text-white">房间 A</span>  │            │  <span class="text-white">房间 B</span>  │                    │
+  │    └────┬─────┘            └──────────┘                    │
+  │         │                                                  │
+  │         ▼                                                  │
+  │    ┌──────────┐      ┌──────────┐                          │
+  │    │  <span class="text-palace-green">壁橱</span>    │ ───▶ │  <span class="text-palace-gold">抽屉</span>    │                          │
+  │    └──────────┘      └──────────┘                          │
+  └─────────┼──────────────────────────────────────────────────┘
+            │
+          <span class="text-palace-red">隧道</span>
+            │
+  ┌─────────┼──────────────────────────────────────────────────┐
+  │  <span class="text-palace-accent font-bold">翼：项目</span>                                                    │
+  │         │                                                  │
+  │    ┌────┴─────┐  <span class="text-palace-yellow">──厅──</span>  ┌──────────┐                    │
+  │    │  <span class="text-white">房间 A</span>  │            │  <span class="text-white">房间 C</span>  │                    │
+  │    └────┬─────┘            └──────────┘                    │
+  │         │                                                  │
+  │         ▼                                                  │
+  │    ┌──────────┐      ┌──────────┐                          │
+  │    │  <span class="text-palace-green">壁橱</span>    │ ───▶ │  <span class="text-palace-gold">抽屉</span>    │                          │
+  │    └──────────┘      └──────────┘                          │
+  └─────────────────────────────────────────────────────────────┘</pre>
+      </div>
+
+      <!-- 结构要素 -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+        <div class="bg-palace-card border border-palace-border/60 rounded-xl p-5 hover:border-palace-accent/30 transition-colors">
+          <div class="flex items-center gap-2.5 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-palace-accent"></span>
+            <h4 class="text-white font-semibold text-sm tracking-tight">翼（Wing）</h4>
+          </div>
+          <p class="text-palace-muted text-sm font-body">一个人或项目。需要多少有多少。</p>
+        </div>
+        <div class="bg-palace-card border border-palace-border/60 rounded-xl p-5 hover:border-white/20 transition-colors">
+          <div class="flex items-center gap-2.5 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-white"></span>
+            <h4 class="text-white font-semibold text-sm tracking-tight">房间（Room）</h4>
+          </div>
+          <p class="text-palace-muted text-sm font-body">一个翼内的特定主题。认证、计费、部署——无尽的房间。</p>
+        </div>
+        <div class="bg-palace-card border border-palace-border/60 rounded-xl p-5 hover:border-palace-yellow/30 transition-colors">
+          <div class="flex items-center gap-2.5 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-palace-yellow"></span>
+            <h4 class="text-white font-semibold text-sm tracking-tight">厅（Hall）</h4>
+          </div>
+          <p class="text-palace-muted text-sm font-body">同一翼内相关房间之间的连接。</p>
+        </div>
+        <div class="bg-palace-card border border-palace-border/60 rounded-xl p-5 hover:border-palace-red/30 transition-colors">
+          <div class="flex items-center gap-2.5 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-palace-red"></span>
+            <h4 class="text-white font-semibold text-sm tracking-tight">隧道（Tunnel）</h4>
+          </div>
+          <p class="text-palace-muted text-sm font-body">翼之间的连接。自动交叉引用同一主题。</p>
+        </div>
+        <div class="bg-palace-card border border-palace-border/60 rounded-xl p-5 hover:border-palace-green/30 transition-colors">
+          <div class="flex items-center gap-2.5 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-palace-green"></span>
+            <h4 class="text-white font-semibold text-sm tracking-tight">壁橱（Closet）</h4>
+          </div>
+          <p class="text-palace-muted text-sm font-body">指向原始内容的摘要。</p>
+        </div>
+        <div class="bg-palace-card border border-palace-border/60 rounded-xl p-5 hover:border-palace-gold/30 transition-colors">
+          <div class="flex items-center gap-2.5 mb-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-palace-gold"></span>
+            <h4 class="text-white font-semibold text-sm tracking-tight">抽屉（Drawer）</h4>
+          </div>
+          <p class="text-palace-muted text-sm font-body">原始逐字文件。精确的字词，绝不摘要。</p>
+        </div>
+      </div>
+
+      <!-- 厅的类型 -->
+      <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-8 mb-10">
+        <h3 class="text-lg font-semibold text-white mb-6 tracking-tight">厅 — 记忆类型</h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div class="bg-palace-surface rounded-lg p-4 border border-palace-border/50 text-center">
+            <div class="text-palace-yellow text-sm font-mono font-semibold mb-1">hall_facts</div>
+            <p class="text-palace-muted text-xs">已做出的决策</p>
+          </div>
+          <div class="bg-palace-surface rounded-lg p-4 border border-palace-border/50 text-center">
+            <div class="text-palace-accent text-sm font-mono font-semibold mb-1">hall_events</div>
+            <p class="text-palace-muted text-xs">会话、里程碑</p>
+          </div>
+          <div class="bg-palace-surface rounded-lg p-4 border border-palace-border/50 text-center">
+            <div class="text-palace-green text-sm font-mono font-semibold mb-1">hall_discoveries</div>
+            <p class="text-palace-muted text-xs">突破、新洞察</p>
+          </div>
+          <div class="bg-palace-surface rounded-lg p-4 border border-palace-border/50 text-center">
+            <div class="text-palace-highlight text-sm font-mono font-semibold mb-1">hall_preferences</div>
+            <p class="text-palace-muted text-xs">习惯、喜好</p>
+          </div>
+          <div class="bg-palace-surface rounded-lg p-4 border border-palace-border/50 text-center">
+            <div class="text-palace-gold text-sm font-mono font-semibold mb-1">hall_advice</div>
+            <p class="text-palace-muted text-xs">建议和解决方案</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 隧道示例 -->
+      <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-8 mb-10">
+        <h3 class="text-lg font-semibold text-white mb-4 tracking-tight">隧道 — 跨翼连接</h3>
+        <p class="text-palace-muted text-sm mb-4">同一个房间出现在不同翼中时，隧道自动交叉引用：</p>
+        <div class="code-block font-mono text-xs">
+          <div><span class="text-palace-accent">wing_kai</span>       / <span class="text-palace-yellow">hall_events</span> / <span class="text-white">auth-migration</span>  → "Kai 调试了 OAuth token 刷新"</div>
+          <div><span class="text-palace-accent">wing_driftwood</span> / <span class="text-palace-yellow">hall_facts</span>  / <span class="text-white">auth-migration</span>  → "团队决定将认证迁移到 Clerk"</div>
+          <div><span class="text-palace-accent">wing_priya</span>     / <span class="text-palace-yellow">hall_advice</span> / <span class="text-white">auth-migration</span>  → "Priya 批准了 Clerk 而不是 Auth0"</div>
+        </div>
+        <p class="text-palace-muted text-sm mt-4">同一个房间。三个翼。隧道连接它们。</p>
+      </div>
+
+      <!-- 为什么结构重要 -->
+      <div class="bg-palace-card border border-palace-accent/20 rounded-2xl p-8 glow">
+        <h3 class="text-lg font-semibold text-white mb-4 tracking-tight">为什么结构很重要</h3>
+        <p class="text-palace-muted text-sm mb-6">在 22,000+ 真实对话记忆上测试：</p>
+        <div class="space-y-3 max-w-md">
+          <div class="flex items-center gap-4">
+            <span class="text-palace-muted text-sm w-36">搜索所有壁橱</span>
+            <div class="flex-1 bg-palace-surface rounded-full h-4 overflow-hidden">
+              <div class="bg-palace-muted h-full rounded-full" style="width: 60.9%"></div>
+            </div>
+            <span class="text-palace-muted text-sm font-mono w-16 text-right">60.9%</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-palace-text text-sm w-36">在翼内搜索 <span class="text-palace-green text-xs">+12%</span></span>
+            <div class="flex-1 bg-palace-surface rounded-full h-4 overflow-hidden">
+              <div class="bg-palace-highlight h-full rounded-full" style="width: 73.1%"></div>
+            </div>
+            <span class="text-palace-highlight text-sm font-mono w-16 text-right">73.1%</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-palace-text text-sm w-36">搜索翼+厅 <span class="text-palace-green text-xs">+24%</span></span>
+            <div class="flex-1 bg-palace-surface rounded-full h-4 overflow-hidden">
+              <div class="bg-palace-accent h-full rounded-full" style="width: 84.8%"></div>
+            </div>
+            <span class="text-palace-accent text-sm font-mono w-16 text-right">84.8%</span>
+          </div>
+          <div class="flex items-center gap-4">
+            <span class="text-palace-text text-sm w-36">搜索翼+房间 <span class="text-palace-green text-xs">+34%</span></span>
+            <div class="flex-1 bg-palace-surface rounded-full h-4 overflow-hidden">
+              <div class="bg-palace-green h-full rounded-full" style="width: 94.8%"></div>
+            </div>
+            <span class="text-palace-green text-sm font-mono w-16 text-right">94.8%</span>
+          </div>
+        </div>
+        <p class="text-palace-muted text-sm mt-5">翼和房间不是装饰性的。宫殿结构就是产品本身。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 记忆栈 -->
+  <section class="py-20 bg-palace-surface/50 border-y border-palace-border/60">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">记忆栈</h2>
+        <p class="text-palace-muted font-body">你的 AI 以 L0 + L1（约 170 token）唤醒，了解你的世界。搜索只在需要时触发。</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-palace-card border border-palace-accent/30 rounded-2xl p-6 text-center glow">
+          <div class="text-2xl font-black text-palace-accent mb-2">L0</div>
+          <div class="text-white font-semibold text-sm mb-2">身份</div>
+          <p class="text-palace-muted text-xs mb-3">这个 AI 是谁？</p>
+          <div class="inline-block px-3 py-1 bg-palace-accent/10 rounded-full text-xs text-palace-accent font-mono">~50 token</div>
+          <div class="mt-3 text-xs text-palace-green">始终加载</div>
+        </div>
+        <div class="bg-palace-card border border-palace-highlight/30 rounded-2xl p-6 text-center glow">
+          <div class="text-2xl font-black text-palace-highlight mb-2">L1</div>
+          <div class="text-white font-semibold text-sm mb-2">关键事实</div>
+          <p class="text-palace-muted text-xs mb-3">团队、项目、偏好</p>
+          <div class="inline-block px-3 py-1 bg-palace-highlight/10 rounded-full text-xs text-palace-highlight font-mono">~120 token</div>
+          <div class="mt-3 text-xs text-palace-green">始终加载</div>
+        </div>
+        <div class="bg-palace-card border border-palace-yellow/30 rounded-2xl p-6 text-center">
+          <div class="text-2xl font-black text-palace-yellow mb-2">L2</div>
+          <div class="text-white font-semibold text-sm mb-2">房间回忆</div>
+          <p class="text-palace-muted text-xs mb-3">近期会话、当前项目</p>
+          <div class="inline-block px-3 py-1 bg-palace-yellow/10 rounded-full text-xs text-palace-yellow font-mono">按需</div>
+          <div class="mt-3 text-xs text-palace-muted">当话题出现时</div>
+        </div>
+        <div class="bg-palace-card border border-palace-muted/30 rounded-2xl p-6 text-center">
+          <div class="text-2xl font-black text-palace-muted mb-2">L3</div>
+          <div class="text-white font-semibold text-sm mb-2">深度搜索</div>
+          <p class="text-palace-muted text-xs mb-3">跨所有壁橱的语义查询</p>
+          <div class="inline-block px-3 py-1 bg-palace-muted/10 rounded-full text-xs text-palace-muted font-mono">按需</div>
+          <div class="mt-3 text-xs text-palace-muted">当被明确询问时</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 知识图谱 & 专家智能体 -->
+  <section class="py-20 md:py-28">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- 知识图谱 -->
+        <div>
+          <h2 class="text-2xl md:text-3xl font-bold text-white mb-6 tracking-tight">知识图谱</h2>
+          <p class="text-palace-muted mb-6">时序实体-关系三元组——类似 Zep 的 Graphiti，但使用 SQLite 而不是 Neo4j。本地且免费。</p>
+          <div class="code-block font-mono text-palace-highlight text-xs mb-6">
+            <div><span class="text-palace-muted">from</span> mempalace.knowledge_graph <span class="text-palace-muted">import</span> KnowledgeGraph</div>
+            <div class="mt-2">kg = KnowledgeGraph()</div>
+            <div>kg.add_triple(<span class="text-palace-gold">"Kai"</span>, <span class="text-palace-gold">"works_on"</span>, <span class="text-palace-gold">"Orion"</span>, valid_from=<span class="text-palace-gold">"2025-06-01"</span>)</div>
+            <div>kg.add_triple(<span class="text-palace-gold">"Maya"</span>, <span class="text-palace-gold">"assigned_to"</span>, <span class="text-palace-gold">"auth-migration"</span>, valid_from=<span class="text-palace-gold">"2026-01-15"</span>)</div>
+            <div class="mt-3"><span class="text-palace-muted"># Kai 在做什么？</span></div>
+            <div>kg.query_entity(<span class="text-palace-gold">"Kai"</span>)</div>
+            <div><span class="text-palace-muted"># → [Kai → works_on → Orion (当前)]</span></div>
+            <div class="mt-2"><span class="text-palace-muted"># 一月份什么是真的？</span></div>
+            <div>kg.query_entity(<span class="text-palace-gold">"Maya"</span>, as_of=<span class="text-palace-gold">"2026-01-20"</span>)</div>
+            <div class="mt-2"><span class="text-palace-muted"># 使事实失效</span></div>
+            <div>kg.invalidate(<span class="text-palace-gold">"Kai"</span>, <span class="text-palace-gold">"works_on"</span>, <span class="text-palace-gold">"Orion"</span>, ended=<span class="text-palace-gold">"2026-03-01"</span>)</div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+              <thead>
+                <tr class="border-b border-palace-border">
+                  <th class="text-left py-2 px-3 text-palace-muted">特性</th>
+                  <th class="text-left py-2 px-3 text-palace-accent font-semibold">MemPalace</th>
+                  <th class="text-left py-2 px-3 text-palace-muted">Zep (Graphiti)</th>
+                </tr>
+              </thead>
+              <tbody class="text-palace-muted">
+                <tr class="border-b border-palace-border/30"><td class="py-2 px-3">存储</td><td class="text-palace-text">SQLite（本地）</td><td>Neo4j（云端）</td></tr>
+                <tr class="border-b border-palace-border/30"><td class="py-2 px-3">成本</td><td class="text-palace-green">免费</td><td>$25/月+</td></tr>
+                <tr class="border-b border-palace-border/30"><td class="py-2 px-3">时序有效性</td><td class="text-palace-green">是</td><td>是</td></tr>
+                <tr><td class="py-2 px-3">自托管</td><td class="text-palace-green">始终</td><td>仅企业版</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 专家智能体 -->
+        <div>
+          <h2 class="text-2xl md:text-3xl font-bold text-white mb-6 tracking-tight">专家智能体</h2>
+          <p class="text-palace-muted mb-6">创建专注于特定领域的智能体。每个智能体在宫殿中获得自己的翼和日记。添加 50 个智能体，你的配置大小保持不变。</p>
+
+          <div class="code-block font-mono text-palace-highlight text-xs mb-6">
+            <div><span class="text-palace-muted">~/.mempalace/agents/</span></div>
+            <div>  ├── <span class="text-palace-accent">reviewer.json</span>       <span class="text-palace-muted"># 代码质量、模式、bug</span></div>
+            <div>  ├── <span class="text-palace-accent">architect.json</span>      <span class="text-palace-muted"># 设计决策、权衡</span></div>
+            <div>  └── <span class="text-palace-accent">ops.json</span>            <span class="text-palace-muted"># 部署、事件、基础设施</span></div>
+          </div>
+
+          <div class="space-y-3 mb-6">
+            <div class="flex items-start gap-3">
+              <span class="text-palace-accent mt-1">●</span>
+              <div>
+                <p class="text-white text-sm font-semibold">有焦点</p>
+                <p class="text-palace-muted text-xs">它关注什么</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-palace-accent mt-1">●</span>
+              <div>
+                <p class="text-white text-sm font-semibold">记日记</p>
+                <p class="text-palace-muted text-xs">用 AAAK 编写，跨会话持久化</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="text-palace-accent mt-1">●</span>
+              <div>
+                <p class="text-white text-sm font-semibold">建立专长</p>
+                <p class="text-palace-muted text-xs">阅读自己的历史以在其领域保持敏锐</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="code-block font-mono text-palace-highlight text-xs">
+            <div><span class="text-palace-muted"># 智能体写入日记</span></div>
+            <div>mempalace_diary_write(<span class="text-palace-gold">"reviewer"</span>,</div>
+            <div>    <span class="text-palace-gold">"PR#42|auth.bypass.found|..."</span>)</div>
+            <div class="mt-2"><span class="text-palace-muted"># 智能体读回历史</span></div>
+            <div>mempalace_diary_read(<span class="text-palace-gold">"reviewer"</span>, last_n=10)</div>
+          </div>
+
+          <p class="text-palace-muted text-sm mt-4">Letta 对智能体管理记忆收取 $20–200/月。MemPalace 用一个翼就做到了。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 矛盾检测 -->
+  <section class="py-16 bg-palace-surface/50 border-y border-palace-border/60">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="flex items-center gap-3 mb-6">
+        <h2 class="text-2xl font-bold text-white">矛盾检测</h2>
+        <span class="px-2 py-0.5 bg-palace-yellow/10 text-palace-yellow rounded text-xs">实验性</span>
+      </div>
+      <p class="text-palace-muted mb-8">一个独立的工具可以对照实体事实检查断言。事实对照知识图谱检查——年龄、日期和任期动态计算。</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-palace-card border border-palace-red/20 rounded-lg p-5">
+          <div class="text-palace-red text-lg mb-2">🔴</div>
+          <p class="text-palace-muted text-sm mb-2">"Soren 完成了认证迁移"</p>
+          <p class="text-palace-red text-xs font-medium">AUTH-MIGRATION：归因冲突——Maya 被分配了，不是 Soren</p>
+        </div>
+        <div class="bg-palace-card border border-palace-yellow/20 rounded-lg p-5">
+          <div class="text-palace-yellow text-lg mb-2">🟡</div>
+          <p class="text-palace-muted text-sm mb-2">"Kai 已经在这里 2 年了"</p>
+          <p class="text-palace-yellow text-xs font-medium">KAI：错误任期——记录显示 3 年（2023-04 入职）</p>
+        </div>
+        <div class="bg-palace-card border border-palace-yellow/20 rounded-lg p-5">
+          <div class="text-palace-yellow text-lg mb-2">🟡</div>
+          <p class="text-palace-muted text-sm mb-2">"冲刺在周五结束"</p>
+          <p class="text-palace-yellow text-xs font-medium">SPRINT：过时日期——当前冲刺在周四结束</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 基准测试 -->
+  <section id="benchmarks" class="py-20 md:py-28">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">基准测试</h2>
+        <p class="text-palace-muted font-body">在标准学术基准测试上测试——可复现、已发布的数据集。</p>
+      </div>
+
+      <!-- 核心成绩 -->
+      <div class="bg-palace-card border border-palace-accent/20 rounded-2xl p-8 mb-10 glow">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-palace-border">
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">基准测试</th>
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">模式</th>
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">得分</th>
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">API 调用</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-palace-border/50 bg-palace-accent/5">
+                <td class="py-3 px-4 text-palace-accent font-semibold">LongMemEval R@5</td>
+                <td class="py-3 px-4 text-palace-muted">原始（仅 ChromaDB）</td>
+                <td class="py-3 px-4 text-palace-accent font-bold text-lg">96.6%</td>
+                <td class="py-3 px-4 text-palace-green">零</td>
+              </tr>
+              <tr class="border-b border-palace-border/50">
+                <td class="py-3 px-4 text-white font-semibold">LongMemEval R@5</td>
+                <td class="py-3 px-4 text-palace-muted">混合 + Haiku 重排序</td>
+                <td class="py-3 px-4 text-white font-bold text-lg">100% (500/500)</td>
+                <td class="py-3 px-4 text-palace-muted">~500</td>
+              </tr>
+              <tr class="border-b border-palace-border/50">
+                <td class="py-3 px-4 text-white">LoCoMo R@10</td>
+                <td class="py-3 px-4 text-palace-muted">原始，会话级别</td>
+                <td class="py-3 px-4 text-white font-semibold">60.3%</td>
+                <td class="py-3 px-4 text-palace-green">零</td>
+              </tr>
+              <tr class="border-b border-palace-border/50">
+                <td class="py-3 px-4 text-white">个人宫殿 R@10</td>
+                <td class="py-3 px-4 text-palace-muted">启发式基准</td>
+                <td class="py-3 px-4 text-white font-semibold">85%</td>
+                <td class="py-3 px-4 text-palace-green">零</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-4 text-white">宫殿结构影响</td>
+                <td class="py-3 px-4 text-palace-muted">翼+房间过滤</td>
+                <td class="py-3 px-4 text-palace-green font-semibold">+34% R@10</td>
+                <td class="py-3 px-4 text-palace-green">零</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 对比 -->
+      <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-8">
+        <h3 class="text-lg font-bold text-white mb-6">与已发布系统的对比</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b border-palace-border">
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">系统</th>
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">LongMemEval R@5</th>
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">需要 API</th>
+                <th class="text-left py-3 px-4 text-palace-muted font-medium">成本</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-palace-border/50 bg-palace-accent/5">
+                <td class="py-3 px-4 text-palace-accent font-bold">MemPalace（混合）</td>
+                <td class="py-3 px-4 text-palace-accent font-bold">100%</td>
+                <td class="py-3 px-4 text-palace-muted">可选</td>
+                <td class="py-3 px-4 text-palace-green">免费</td>
+              </tr>
+              <tr class="border-b border-palace-border/50">
+                <td class="py-3 px-4 text-palace-muted">Supermemory ASMR</td>
+                <td class="py-3 px-4 text-palace-muted">~99%</td>
+                <td class="py-3 px-4 text-palace-red">是</td>
+                <td class="py-3 px-4 text-palace-muted">—</td>
+              </tr>
+              <tr class="border-b border-palace-border/50 bg-palace-accent/5">
+                <td class="py-3 px-4 text-palace-accent font-bold">MemPalace（原始）</td>
+                <td class="py-3 px-4 text-palace-accent font-bold">96.6%</td>
+                <td class="py-3 px-4 text-palace-green font-semibold">否</td>
+                <td class="py-3 px-4 text-palace-green font-semibold">免费</td>
+              </tr>
+              <tr class="border-b border-palace-border/50">
+                <td class="py-3 px-4 text-palace-muted">Mastra</td>
+                <td class="py-3 px-4 text-palace-muted">94.87%</td>
+                <td class="py-3 px-4 text-palace-red">是 (GPT)</td>
+                <td class="py-3 px-4 text-palace-muted">API 成本</td>
+              </tr>
+              <tr class="border-b border-palace-border/50">
+                <td class="py-3 px-4 text-palace-muted">Mem0</td>
+                <td class="py-3 px-4 text-palace-muted">~85%</td>
+                <td class="py-3 px-4 text-palace-red">是</td>
+                <td class="py-3 px-4 text-palace-muted">$19–249/月</td>
+              </tr>
+              <tr>
+                <td class="py-3 px-4 text-palace-muted">Zep</td>
+                <td class="py-3 px-4 text-palace-muted">~85%</td>
+                <td class="py-3 px-4 text-palace-red">是</td>
+                <td class="py-3 px-4 text-palace-muted">$25/月+</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="text-palace-muted text-xs mt-4">96.6% 的原始得分是已发布的最高 LongMemEval 结果，不需要 API 密钥、不需要云端、在任何阶段都不需要 LLM。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- MCP 工具 -->
+  <section id="mcp" class="py-20 bg-palace-surface/50 border-y border-palace-border/60">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">MCP 服务器 — 19 个工具</h2>
+        <div class="inline-flex items-center gap-3 bg-palace-surface border border-palace-border/60 rounded-xl px-5 py-2.5 mt-4">
+          <code class="text-palace-highlight font-mono text-sm">claude mcp add mempalace -- python -m mempalace.mcp_server</code>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- 宫殿读取 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-6">
+          <h3 class="text-palace-accent font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+            宫殿（读取）
+          </h3>
+          <ul class="space-y-2 text-sm text-palace-muted">
+            <li class="flex items-start gap-2"><span class="text-palace-accent mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_status</code> 宫殿概览</li>
+            <li class="flex items-start gap-2"><span class="text-palace-accent mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_list_wings</code> 翼及计数</li>
+            <li class="flex items-start gap-2"><span class="text-palace-accent mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_list_rooms</code> 翼内房间</li>
+            <li class="flex items-start gap-2"><span class="text-palace-accent mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_get_taxonomy</code> 完整分类树</li>
+            <li class="flex items-start gap-2"><span class="text-palace-accent mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_search</code> 语义搜索</li>
+            <li class="flex items-start gap-2"><span class="text-palace-accent mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_check_duplicate</code> 归档前检查</li>
+            <li class="flex items-start gap-2"><span class="text-palace-accent mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_get_aaak_spec</code> AAAK 参考</li>
+          </ul>
+        </div>
+
+        <!-- 宫殿写入 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-6">
+          <h3 class="text-palace-green font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            宫殿（写入）
+          </h3>
+          <ul class="space-y-2 text-sm text-palace-muted">
+            <li class="flex items-start gap-2"><span class="text-palace-green mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_add_drawer</code> 归档逐字内容</li>
+            <li class="flex items-start gap-2"><span class="text-palace-green mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_delete_drawer</code> 按 ID 删除</li>
+          </ul>
+
+          <h3 class="text-palace-yellow font-semibold mt-6 mb-4 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+            知识图谱
+          </h3>
+          <ul class="space-y-2 text-sm text-palace-muted">
+            <li class="flex items-start gap-2"><span class="text-palace-yellow mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_kg_query</code> 实体关系</li>
+            <li class="flex items-start gap-2"><span class="text-palace-yellow mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_kg_add</code> 添加事实</li>
+            <li class="flex items-start gap-2"><span class="text-palace-yellow mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_kg_invalidate</code> 标记已结束</li>
+            <li class="flex items-start gap-2"><span class="text-palace-yellow mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_kg_timeline</code> 按时间故事</li>
+            <li class="flex items-start gap-2"><span class="text-palace-yellow mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_kg_stats</code> 图谱概览</li>
+          </ul>
+        </div>
+
+        <!-- 导航 & 日记 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-6">
+          <h3 class="text-palace-highlight font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            导航
+          </h3>
+          <ul class="space-y-2 text-sm text-palace-muted">
+            <li class="flex items-start gap-2"><span class="text-palace-highlight mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_traverse</code> 跨翼遍历</li>
+            <li class="flex items-start gap-2"><span class="text-palace-highlight mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_find_tunnels</code> 查找连接</li>
+            <li class="flex items-start gap-2"><span class="text-palace-highlight mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_graph_stats</code> 连通性概览</li>
+          </ul>
+
+          <h3 class="text-palace-gold font-semibold mt-6 mb-4 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            智能体日记
+          </h3>
+          <ul class="space-y-2 text-sm text-palace-muted">
+            <li class="flex items-start gap-2"><span class="text-palace-gold mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_diary_write</code> 写入 AAAK 日记</li>
+            <li class="flex items-start gap-2"><span class="text-palace-gold mt-0.5">▸</span> <code class="text-palace-highlight font-mono text-xs">mempalace_diary_read</code> 读取日记条目</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="text-palace-muted text-sm text-center mt-8">AI 从 mempalace_status 响应中自动学习 AAAK 和记忆协议。无需手动配置。</p>
+    </div>
+  </section>
+
+  <!-- 真实世界示例 -->
+  <section class="py-20 md:py-28">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="text-center mb-14">
+        <h2 class="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">真实世界示例</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- 独立开发者 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-8">
+          <h3 class="text-lg font-bold text-white mb-2">跨多个项目的独立开发者</h3>
+          <div class="code-block font-mono text-palace-highlight text-xs my-4">
+            <div><span class="text-palace-muted"># 挖掘每个项目的对话</span></div>
+            <div>mempalace mine ~/chats/orion/ --mode convos --wing orion</div>
+            <div>mempalace mine ~/chats/nova/ --mode convos --wing nova</div>
+            <div>mempalace mine ~/chats/helios/ --mode convos --wing helios</div>
+            <div class="mt-3"><span class="text-palace-muted"># 六个月后："我为什么在这里使用 Postgres？"</span></div>
+            <div>mempalace search <span class="text-palace-gold">"数据库决策"</span> --wing orion</div>
+            <div class="mt-2"><span class="text-palace-muted"># → "选择 Postgres 而不是 SQLite，因为 Orion 需要并发写入"</span></div>
+          </div>
+        </div>
+
+        <!-- 团队负责人 -->
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-8">
+          <h3 class="text-lg font-bold text-white mb-2">管理产品的团队负责人</h3>
+          <div class="code-block font-mono text-palace-highlight text-xs my-4">
+            <div><span class="text-palace-muted"># 挖掘 Slack 导出和 AI 对话</span></div>
+            <div>mempalace mine ~/exports/slack/ --mode convos --wing driftwood</div>
+            <div class="mt-3"><span class="text-palace-muted"># "谁决定使用 Clerk？"</span></div>
+            <div>mempalace search <span class="text-palace-gold">"Clerk 决策"</span> --wing driftwood</div>
+            <div class="mt-2"><span class="text-palace-muted"># → "Kai 推荐 Clerk 而不是 Auth0——价格 + 开发者体验"</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 所有命令 -->
+  <section class="py-16 bg-palace-surface/50 border-y border-palace-border/60">
+    <div class="max-w-4xl mx-auto px-6">
+      <h2 class="text-2xl font-bold text-white mb-8 text-center">所有命令</h2>
+      <div class="code-block font-mono text-palace-highlight text-xs leading-loose">
+        <div><span class="text-palace-accent font-semibold"># 设置</span></div>
+        <div>mempalace init &lt;dir&gt;                              <span class="text-palace-muted"># 引导式入门 + AAAK 引导</span></div>
+        <div class="mt-3"><span class="text-palace-accent font-semibold"># 挖掘</span></div>
+        <div>mempalace mine &lt;dir&gt;                              <span class="text-palace-muted"># 挖掘项目文件</span></div>
+        <div>mempalace mine &lt;dir&gt; --mode convos                <span class="text-palace-muted"># 挖掘对话导出</span></div>
+        <div>mempalace mine &lt;dir&gt; --mode convos --wing myapp   <span class="text-palace-muted"># 用翼名标记</span></div>
+        <div class="mt-3"><span class="text-palace-accent font-semibold"># 拆分</span></div>
+        <div>mempalace split &lt;dir&gt;                             <span class="text-palace-muted"># 拆分连接的对话记录</span></div>
+        <div>mempalace split &lt;dir&gt; --dry-run                   <span class="text-palace-muted"># 预览</span></div>
+        <div class="mt-3"><span class="text-palace-accent font-semibold"># 搜索</span></div>
+        <div>mempalace search <span class="text-palace-gold">"查询"</span>                           <span class="text-palace-muted"># 搜索一切</span></div>
+        <div>mempalace search <span class="text-palace-gold">"查询"</span> --wing myapp              <span class="text-palace-muted"># 在一个翼内</span></div>
+        <div>mempalace search <span class="text-palace-gold">"查询"</span> --room auth-migration     <span class="text-palace-muted"># 在一个房间内</span></div>
+        <div class="mt-3"><span class="text-palace-accent font-semibold"># 记忆栈</span></div>
+        <div>mempalace wake-up                                 <span class="text-palace-muted"># 加载 L0 + L1 上下文</span></div>
+        <div>mempalace wake-up --wing driftwood                <span class="text-palace-muted"># 项目特定</span></div>
+        <div class="mt-3"><span class="text-palace-accent font-semibold"># 压缩 & 状态</span></div>
+        <div>mempalace compress --wing myapp                   <span class="text-palace-muted"># AAAK 压缩</span></div>
+        <div>mempalace status                                  <span class="text-palace-muted"># 宫殿概览</span></div>
+      </div>
+      <p class="text-palace-muted text-xs mt-4 text-center">所有命令都接受 --palace &lt;path&gt; 来覆盖默认位置。</p>
+    </div>
+  </section>
+
+  <!-- 自动保存钩子 -->
+  <section class="py-16">
+    <div class="max-w-4xl mx-auto px-6">
+      <h2 class="text-2xl font-bold text-white mb-8 text-center">自动保存钩子</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-6">
+          <h3 class="text-palace-accent font-semibold mb-3">保存钩子</h3>
+          <p class="text-palace-muted text-sm mb-3">每 15 条消息，触发一次结构化保存。主题、决策、引述、代码变更。同时重新生成关键事实层。</p>
+        </div>
+        <div class="bg-palace-card border border-palace-border/60 rounded-2xl p-6">
+          <h3 class="text-palace-yellow font-semibold mb-3">PreCompact 钩子</h3>
+          <p class="text-palace-muted text-sm">在上下文压缩之前触发。窗口缩小前的紧急保存。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 系统要求 -->
+  <section class="py-16 bg-palace-surface/50 border-y border-palace-border/60">
+    <div class="max-w-4xl mx-auto px-6 text-center">
+      <h2 class="text-2xl font-bold text-white mb-8 tracking-tight">系统要求</h2>
+      <div class="flex flex-wrap items-center justify-center gap-3 mb-8">
+        <span class="px-4 py-2 bg-palace-card border border-palace-border/60 rounded-xl text-sm font-mono text-palace-highlight">Python 3.9+</span>
+        <span class="px-4 py-2 bg-palace-card border border-palace-border/60 rounded-xl text-sm font-mono text-palace-highlight">chromadb >= 0.4.0</span>
+        <span class="px-4 py-2 bg-palace-card border border-palace-border/60 rounded-xl text-sm font-mono text-palace-highlight">pyyaml >= 6.0</span>
+      </div>
+      <p class="text-palace-muted text-sm mb-6 font-body">无需 API 密钥。安装后无需互联网。一切本地。</p>
+      <div class="inline-flex items-center gap-3 bg-palace-card border border-palace-accent/20 rounded-xl px-6 py-3.5 glow">
+        <span class="text-palace-muted text-sm font-mono select-none">$</span>
+        <code class="text-palace-accent font-mono text-sm font-semibold">pip install mempalace</code>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="py-14 border-t border-palace-border/60">
+    <div class="max-w-5xl mx-auto px-6">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div class="flex items-center gap-2.5 text-white font-semibold tracking-tight">
+          <span class="text-xl">🏛️</span> MemPalace
+        </div>
+        <div class="flex items-center gap-6 text-sm text-palace-muted font-body">
+          <a href="https://github.com/milla-jovovich/mempalace" target="_blank" class="nav-link">GitHub</a>
+          <a href="https://github.com/milla-jovovich/mempalace/blob/main/LICENSE" target="_blank" class="nav-link">MIT 许可证</a>
+          <a href="https://discord.com/invite/ycTQQCu6kn" target="_blank" class="nav-link">Discord</a>
+        </div>
+        <div class="flex items-center gap-3 text-xs text-palace-muted font-body">
+          <span class="px-2.5 py-1 bg-palace-card border border-palace-border/60 rounded-lg font-mono text-palace-highlight">v3.0.0</span>
+          <span>Python 3.9+</span>
+          <span class="text-palace-border">·</span>
+          <span>MIT</span>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // 移动端菜单
+    document.getElementById('mobileMenuBtn').addEventListener('click', function() {
+      document.getElementById('mobileMenu').classList.toggle('hidden');
+    });
+
+    // 点击导航链接关闭移动端菜单
+    document.querySelectorAll('#mobileMenu a').forEach(link => {
+      link.addEventListener('click', () => {
+        document.getElementById('mobileMenu').classList.add('hidden');
+      });
+    });
+
+    // 导航栏滚动效果
+    window.addEventListener('scroll', function() {
+      const nav = document.querySelector('nav');
+      if (window.scrollY > 10) {
+        nav.classList.add('border-b', 'border-palace-border');
+      }
+    });
+
+    // 滚动显示动画
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+    document.querySelectorAll('section > div').forEach(el => {
+      el.classList.add('reveal');
+      observer.observe(el);
+    });
+
+    // 复制按钮反馈
+    document.querySelectorAll('button[onclick*="clipboard"]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const original = this.innerHTML;
+        this.innerHTML = '<svg class="w-4 h-4 text-palace-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+        setTimeout(() => this.innerHTML = original, 1500);
+      });
+    });
+  </script>
+</body>
+</html>
