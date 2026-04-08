@@ -1,4 +1,4 @@
-> **本文档汉化自 [github.com/milla-jovovich/mempalace](https://github.com/milla-jovovich/mempalace)，仅供中文用户参考。原始英文版以上游仓库为准。**
+> **本文档汉化自 [github.com/milla-jovovich/mempalace](https://github.com/milla-jovovich/mempalace)，英文版以上游仓库为准。**
 
 <div align="center">
 
